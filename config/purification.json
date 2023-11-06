@@ -1,0 +1,159 @@
+{
+    "name": "purification",
+    "gpu_ids": [0],
+    "seed" : 42,
+    "finetune_norm": false,
+
+    "path": {
+        "base_dir": "experiments",
+        "code": "code",
+        "tb_logger": "tb_logger",
+        "results": "results",
+        "checkpoint": "checkpoint",
+        "resume_state": "experiments/train_purification_230718_152715/checkpoint/last"
+    },
+
+    "datasets": {
+        "train": {
+            "which_dataset": {
+                "name": ["data.dataset", "InpaintDataset3"],
+                "args":{
+                    "data_root": "../Adv_img/cifar10/train/train",
+                    "data_len": -1,
+                    "img_opt": "other",
+                    "mode": "train",
+                    "mask_config": {
+                        "mask_mode": "noise"
+                    }
+                }
+            },
+            "dataloader":{
+                "validation_split": 0 ,
+                "args":{
+                    "batch_size": 512,
+                    "num_workers": 16,
+                    "shuffle": false,
+                    "pin_memory": true,
+                    "drop_last": true
+                },
+                "val_args":{
+                    "batch_size": 2500,
+                    "num_workers": 16,
+                    "shuffle": false,
+                    "pin_memory": true,
+                    "drop_last": false
+                }
+            }
+        },
+        "test": {
+            "which_dataset": {
+                "name": "InpaintDataset3",
+                "args":{
+                    "data_root": "../CIFAR_data/test",
+                    "img_opt": "other",
+                    "mode": "test",
+
+                    "mask_config": {
+                        "mask_mode": "noise"
+                    }
+                }
+            },
+            "dataloader":{
+                "args":{
+                    "batch_size": 2500,
+                    "num_workers": 16,
+                    "shuffle": false,
+                    "pin_memory": true
+                }
+            }
+        }
+    },
+
+    "model": {
+        "which_model": {
+            "name": ["models.model", "Palette"],
+            "args": {
+                "sample_num": 8,
+                "task": "inpainting",
+                "ema_scheduler": {
+                    "ema_start": 1,
+                    "ema_iter": 1,
+                    "ema_decay": 0.9999
+                },
+                "optimizers": [
+                    {
+                        "lr": 1e-4, "weight_decay": 0
+                    }
+                ],
+                "only_out":"out" ,
+                "data_type": "cifar10",
+                "classifier": "resnet50",
+                "classifier_path": "../Model_Weight/"
+            }
+	        },
+        "which_networks": [
+            {
+                "name": ["models.network", "Network"],
+                "args": {
+                    "init_type": "kaiming",
+                    "module_name": "guided_diffusion",
+                    "unet": {
+                        "in_channel": 6,
+                        "out_channel": 3,
+                        "inner_channel": 64,
+                        "channel_mults": [
+                            1,
+                            1,
+                            2,
+                            2
+                        ],
+                        "attn_res": [
+
+                            16
+                        ],
+                        "num_head_channels": 32,  // sr need //
+                        "res_blocks": 2	,
+                        "dropout": 0.2,
+                        "image_size": 32
+                    },
+                    "beta_schedule": {
+                        "train": {
+                            "schedule": "linear",
+                            "n_timestep": 2000,
+                            "linear_start": 1e-6,
+                            "linear_end": 0.01
+                        },
+                        "test": {
+                            "schedule": "linear",
+                            "n_timestep": 50,
+                            "linear_start": 1e-6,
+                            "linear_end":0.01
+                        }
+                    }
+                }
+            }
+        ],
+        "which_losses": [
+            "control_loss"
+        ],
+        "which_metrics": [
+            "mae"
+        ]
+    },
+
+    "train": {
+        "n_epoch":5000,
+        "n_iter": 1e10,
+        "val_epoch": 100,
+        "save_checkpoint_epoch": 10,
+        "log_iter": 1e4,
+        "tensorboard" : true
+    },
+
+    "debug": {
+        "val_epoch": 1,
+        "save_checkpoint_epoch": 1,
+        "log_iter": 10,
+        "debug_split": 50
+    }
+}
